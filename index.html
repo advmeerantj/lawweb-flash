@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LawWeb Flash</title>
+  <title>Legal Flash Reader</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -16,16 +16,39 @@
       color: #fff;
       padding: 1rem;
       text-align: center;
+      font-size: 1.5rem;
+    }
+    .controls {
+      background: #eee;
+      padding: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    .controls input, .controls select {
+      padding: 0.5rem;
+      font-size: 1rem;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    .section {
+      padding: 1rem;
+    }
+    h2 {
+      margin: 1rem 0 0.5rem;
       font-size: 1.2rem;
+      border-left: 5px solid #007bff;
+      padding-left: 0.5rem;
     }
     .card {
       background: #fff;
-      margin: 1rem;
+      margin: 0.5rem 0;
       padding: 1rem;
       border-radius: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
-    .card h2 {
+    .card h3 {
       font-size: 1rem;
       margin: 0 0 0.5rem 0;
     }
@@ -36,7 +59,7 @@
     .card a {
       display: inline-block;
       margin-top: 0.5rem;
-      padding: 0.5rem 1rem;
+      padding: 0.4rem 0.8rem;
       background: #007bff;
       color: #fff;
       text-decoration: none;
@@ -46,46 +69,174 @@
     .card a:hover {
       background: #0056b3;
     }
+    .source-title {
+      margin-top: 2rem;
+      background: #444;
+      color: #fff;
+      padding: 0.5rem;
+      border-radius: 5px;
+      text-align: center;
+      font-weight: bold;
+    }
+    #topBtn {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 99;
+      font-size: 18px;
+      border: none;
+      outline: none;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      padding: 12px;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    #topBtn:hover {
+      background-color: #0056b3;
+    }
   </style>
 </head>
 <body>
-  <header>LawWeb Flash Updates</header>
-  <div id="news-container"></div>
+  <header>⚖️ Legal Flash Reader</header>
+
+  <div class="controls">
+    <input type="text" id="searchBox" placeholder="🔍 Search news..." oninput="filterNews()" />
+    <select id="sourceFilter" onchange="filterNews()">
+      <option value="all">All Sources</option>
+      <option value="LawWeb">LawWeb</option>
+      <option value="LiveLaw">LiveLaw</option>
+      <option value="Verdictum">Verdictum</option>
+    </select>
+  </div>
+
+  <div id="content"></div>
+
+  <button onclick="scrollToTop()" id="topBtn">↑</button>
 
   <script>
-    async function fetchLawWeb() {
-      try {
-        const rssUrl = "https://www.lawweb.in/feeds/posts/default?alt=rss";
-        const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`);
-        const data = await response.json();
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(data.contents, "application/xml");
-        const items = xml.querySelectorAll("item");
-        const container = document.getElementById("news-container");
-        container.innerHTML = "";
+    const sources = [
+      { name: "LawWeb", url: "https://www.lawweb.in/feeds/posts/default?alt=rss" },
+      { name: "LiveLaw", url: "https://www.livelaw.in/rssfeed" },
+      { name: "Verdictum", url: "https://www.verdictum.in/rssfeed" }
+    ];
 
-        items.forEach((item, idx) => {
-          if (idx < 10) { // show latest 10
-            const title = item.querySelector("title").textContent;
-            const link = item.querySelector("link").textContent;
-            const description = item.querySelector("description")?.textContent || "";
-            const card = document.createElement("div");
-            card.className = "card";
-            card.innerHTML = `
-              <h2>${title}</h2>
-              <p>${description.substring(0,150)}...</p>
-              <a href="${link}" target="_blank">Read More</a>
-            `;
-            container.appendChild(card);
-          }
-        });
+    let allNews = [];
+
+    function groupByDate(items) {
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
+
+      const groups = { "Today": [], "Yesterday": [], "Older": [] };
+
+      items.forEach(item => {
+        const pubDate = new Date(item.pubDate);
+        if (pubDate.toDateString() === today.toDateString()) {
+          groups.Today.push(item);
+        } else if (pubDate.toDateString() === yesterday.toDateString()) {
+          groups.Yesterday.push(item);
+        } else {
+          groups.Older.push(item);
+        }
+      });
+
+      return groups;
+    }
+
+    async function fetchFeed(source) {
+      try {
+        const response = await fetch(
+          `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}`
+        );
+        const data = await response.json();
+        return data.items.map(i => ({
+          title: i.title,
+          link: i.link,
+          description: i.description.replace(/<[^>]+>/g, "").substring(0,150),
+          pubDate: i.pubDate,
+          source: source.name
+        }));
       } catch (err) {
-        console.error("Failed to fetch LawWeb RSS:", err);
-        document.getElementById("news-container").innerHTML = "<p>⚠️ Could not load updates. Try again later.</p>";
+        console.error("Error fetching", source.name, err);
+        return [];
       }
     }
 
-    fetchLawWeb();
+    async function loadAll() {
+      const container = document.getElementById("content");
+      container.innerHTML = "<p>⏳ Loading updates...</p>";
+      allNews = [];
+
+      for (const src of sources) {
+        const items = await fetchFeed(src);
+        allNews.push(...items);
+      }
+
+      renderNews();
+    }
+
+    function renderNews() {
+      const container = document.getElementById("content");
+      container.innerHTML = "";
+
+      const filterSource = document.getElementById("sourceFilter").value;
+      const query = document.getElementById("searchBox").value.toLowerCase();
+
+      let filtered = allNews.filter(item => {
+        const matchesSource = (filterSource === "all" || item.source === filterSource);
+        const matchesSearch = (item.title.toLowerCase().includes(query) || item.description.toLowerCase().includes(query));
+        return matchesSource && matchesSearch;
+      });
+
+      const grouped = groupByDate(filtered);
+
+      for (const src of sources) {
+        const srcTitle = document.createElement("div");
+        srcTitle.className = "source-title";
+        srcTitle.textContent = src.name;
+        container.appendChild(srcTitle);
+
+        for (const [label, posts] of Object.entries(grouped)) {
+          const postsFromSource = posts.filter(p => p.source === src.name);
+          if (postsFromSource.length > 0) {
+            const h2 = document.createElement("h2");
+            h2.textContent = label;
+            container.appendChild(h2);
+
+            postsFromSource.slice(0,5).forEach(post => {
+              const card = document.createElement("div");
+              card.className = "card";
+              card.innerHTML = `
+                <h3>${post.title}</h3>
+                <p>${post.description}...</p>
+                <small><i>${new Date(post.pubDate).toLocaleString()}</i></small><br>
+                <a href="${post.link}" target="_blank">Read More</a>
+              `;
+              container.appendChild(card);
+            });
+          }
+        }
+      }
+    }
+
+    function filterNews() {
+      renderNews();
+    }
+
+    function scrollToTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    window.onscroll = function() {
+      document.getElementById("topBtn").style.display = 
+        (document.documentElement.scrollTop > 200) ? "block" : "none";
+    };
+
+    loadAll();
+    setInterval(loadAll, 30 * 60 * 1000); // auto-refresh every 30 min
   </script>
 </body>
 </html>
