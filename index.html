@@ -53,38 +53,40 @@
   <div id="news-container"></div>
 
   <script>
-    async function fetchLawWeb() {
-      try {
-        const rssUrl = "https://www.lawweb.in/feeds/posts/default?alt=rss";
-        const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`);
-        const data = await response.json();
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(data.contents, "text/xml");
-        const items = xml.querySelectorAll("item");
-        const container = document.getElementById("news-container");
-        container.innerHTML = "";
+<script>
+  async function fetchLawWeb() {
+    try {
+      const rssUrl = "https://www.lawweb.in/feeds/posts/default?alt=rss";
+      const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`);
+      const data = await response.json();
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(data.contents, "application/xml");
+      const items = xml.querySelectorAll("item");
+      const container = document.getElementById("news-container");
+      container.innerHTML = "";
 
-        items.forEach((item, index) => {
-          if (index > 9) return; // show latest 10 only
+      items.forEach((item, idx) => {
+        if (idx < 10) { // show latest 10
           const title = item.querySelector("title").textContent;
           const link = item.querySelector("link").textContent;
           const description = item.querySelector("description")?.textContent || "";
-
           const card = document.createElement("div");
           card.className = "card";
           card.innerHTML = `
             <h2>${title}</h2>
-            <p>${description.substring(0, 120)}...</p>
+            <p>${description.substring(0,150)}...</p>
             <a href="${link}" target="_blank">Read More</a>
           `;
           container.appendChild(card);
-        });
-      } catch (error) {
-        console.error("Error fetching feed", error);
-      }
+        }
+      });
+    } catch (err) {
+      console.error("Failed to fetch LawWeb RSS:", err);
+      document.getElementById("news-container").innerHTML = "<p>⚠️ Could not load updates. Try again later.</p>";
     }
+  }
 
-    fetchLawWeb();
-  </script>
+  fetchLawWeb();
+</script>
 </body>
 </html>
