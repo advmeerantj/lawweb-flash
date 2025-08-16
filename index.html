@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lawyer Reader</title>
 <style>
 body { font-family: Arial,sans-serif; margin:0; background:#f5f5f5; color:#333; transition: background .3s,color .3s;}
@@ -18,7 +18,7 @@ nav button.active { background:#007bff;}
 .card { background:#fff;margin:1rem 0;padding:1rem;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.1);transition:background .3s,color .3s;}
 .card h2 { font-size:1rem; margin:0 0 .5rem 0;}
 .card p { font-size:.9rem;color:#555;}
-.card a { display:inline-block;margin-top:.5rem;margin-right:.5rem;padding:.5rem 1rem;background:#007bff;color:#fff;text-decoration:none;border-radius:5px;font-size:.85rem;transition: background .3s,color .3s;}
+.card a { display:inline-block;margin-top:0.5rem;margin-right:0.5rem;padding:0.5rem 1rem;background:#007bff;color:#fff;text-decoration:none;border-radius:5px;font-size:.85rem;transition: background .3s,color .3s;}
 .card a:hover { background:#0056b3;}
 .card .show-more { color:#007bff; cursor:pointer; font-size:0.85rem; margin-top:0.5rem; display:inline-block;}
 .toolbar { margin-top:.5rem;}
@@ -51,6 +51,8 @@ body.dark .last-updated { color:#bbb; }
 <button class="tab-btn" data-tab="barbench">Bar & Bench</button>
 <button class="tab-btn" data-tab="supremetoday">SupremeToday</button>
 <button class="tab-btn" data-tab="scconline">SCC Online</button>
+<button class="tab-btn" data-tab="indiankanoon">IndianKanoon</button>
+<button class="tab-btn" data-tab="casemine">CaseMine</button>
 <button class="tab-btn" data-tab="favorites">⭐ Favorites</button>
 </nav>
 
@@ -61,6 +63,8 @@ body.dark .last-updated { color:#bbb; }
 <div id="barbench" class="tab-content"><div id="barbench-container">Loading...</div></div>
 <div id="supremetoday" class="tab-content"><div id="supremetoday-container">Loading...</div></div>
 <div id="scconline" class="tab-content"><div id="scconline-container">Loading...</div></div>
+<div id="indiankanoon" class="tab-content"><div id="indiankanoon-container">Loading...</div></div>
+<div id="casemine" class="tab-content"><div id="casemine-container">Loading...</div></div>
 <div id="favorites" class="tab-content"><div id="favorites-container">No favorites saved.</div></div>
 
 <script>
@@ -168,8 +172,8 @@ function showLastUpdated(containerId,timestamp){
   info.textContent="Last Updated: "+timestamp;
 }
 
-// --- Fetch RSS ---
-async function fetchRSS(rssUrl, containerId, storageKey){
+// --- Fetch RSS with filters ---
+async function fetchRSS(rssUrl, containerId, storageKey, filterReportable=false){
   const container=document.getElementById(containerId);
   let cached=JSON.parse(localStorage.getItem(storageKey))||[];
   if(cached.length>0){
@@ -185,10 +189,16 @@ async function fetchRSS(rssUrl, containerId, storageKey){
     const items=xml.querySelectorAll("item");
     let results=[];
     items.forEach((item,idx)=>{
-      if(idx<10){
+      if(idx<50){
         const title=item.querySelector("title")?.textContent||"No title";
         const link=item.querySelector("link")?.textContent||"#";
         const desc=item.querySelector("description")?.textContent||"";
+        // Filtering for reportable and specific courts
+        if(filterReportable){
+          const text=desc.toLowerCase();
+          if(!text.includes("reportable")) return;
+          if(!(text.includes("madras high court") || text.includes("supreme court"))) return;
+        }
         results.push({title,link,desc});
       }
     });
@@ -210,14 +220,16 @@ const feeds = [
   {url:"https://blog.ipleaders.in/feed/",container:"ipleaders-container",key:"ipleaders"},
   {url:"https://www.barandbench.com/rss",container:"barbench-container",key:"barbench"},
   {url:"https://supremetoday.ai/feed",container:"supremetoday-container",key:"supremetoday"},
-  {url:"https://www.scconline.com/feed/",container:"scconline-container",key:"scconline"}
+  {url:"https://www.scconline.com/feed/",container:"scconline-container",key:"scconline"},
+  {url:"https://indiankanoon.org/rss/recent/",container:"indiankanoon-container",key:"indiankanoon",filter:true},
+  {url:"https://www.casemine.com/recent.rss",container:"casemine-container",key:"casemine",filter:true}
 ];
-feeds.forEach(f=>fetchRSS(f.url,f.container,f.key));
+feeds.forEach(f=>fetchRSS(f.url,f.container,f.key,f.filter||false));
 loadFavorites();
 
 // --- Inline Service Worker ---
 if('serviceWorker' in navigator){
-  const swCode=`const CACHE_NAME='lawyer-reader-cache-v2';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(['/','/index.html'])));self.skipWaiting();});
+  const swCode=`const CACHE_NAME='lawyer-reader-cache-v3';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(['/','/index.html'])));self.skipWaiting();});
   self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.map(k=>{if(k!==CACHE_NAME) return caches.delete(k);})));self.clients.claim();});
   self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(fR=>caches.open(CACHE_NAME).then(c=>{c.put(e.request,fR.clone());return fR;})).catch(()=>caches.match('/index.html'))));});`;
   const blob = new Blob([swCode],{type:'application/javascript'});
