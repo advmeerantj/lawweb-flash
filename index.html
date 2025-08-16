@@ -1,172 +1,178 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Law Updates Flash</title>
+  <meta charset="UTF-8">
+  <title>LawFlash Updates</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background: #f5f5f5;
-      color: #333;
-      transition: background 0.3s, color 0.3s;
-    }
-    body.dark {
-      background: #121212;
-      color: #ddd;
-    }
-    header {
-      background: #222;
-      color: #fff;
-      padding: 1rem;
-      text-align: center;
-      font-size: 1.2rem;
-      position: relative;
-    }
-    #night-toggle {
-      position: absolute;
-      right: 10px;
-      top: 10px;
-      cursor: pointer;
-      font-size: 1.2rem;
-    }
-    .tabs {
-      display: flex;
-      background: #333;
-      overflow-x: auto;
-    }
-    .tab {
-      flex: 1;
-      padding: 0.8rem;
-      text-align: center;
-      color: #fff;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-    .tab.active {
-      background: #007bff;
-    }
-    .content {
-      display: none;
-      padding: 1rem;
-    }
-    .content.active {
-      display: block;
-    }
-    .card {
-      background: #fff;
-      margin: 1rem 0;
-      padding: 1rem;
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      transition: background 0.3s, color 0.3s;
-    }
-    body.dark .card {
-      background: #1e1e1e;
-      color: #ddd;
-    }
-    .card h2 {
-      font-size: 1rem;
-      margin: 0 0 0.5rem 0;
-    }
-    .card p {
-      font-size: 0.9rem;
-      color: #555;
-    }
-    body.dark .card p {
-      color: #bbb;
-    }
-    .card a, .btn {
-      display: inline-block;
-      margin: 0.3rem 0.3rem 0 0;
-      padding: 0.4rem 0.8rem;
-      background: #007bff;
-      color: #fff;
-      text-decoration: none;
-      border-radius: 5px;
-      font-size: 0.8rem;
-      cursor: pointer;
-    }
-    .card a:hover, .btn:hover {
-      background: #0056b3;
-    }
-    .fav-btn {
-      float: right;
-      cursor: pointer;
-      font-size: 1.2rem;
-    }
+    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f4f4f4; color:#222; transition:0.3s; }
+    header { background:#222; color:#fff; padding:10px; display:flex; justify-content:space-between; align-items:center; }
+    header h1 { margin:0; font-size:18px; }
+    #tabs { display:flex; flex-wrap:wrap; background:#444; }
+    #tabs button { flex:1; padding:10px; border:none; background:#444; color:#fff; cursor:pointer; }
+    #tabs button.active { background:#222; }
+    .content { padding:10px; }
+    .card { background:#fff; margin:10px 0; padding:10px; border-radius:6px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+    .card h3 { margin:0 0 5px; }
+    .card a { text-decoration:none; color:#0066cc; display:inline-block; margin-right:8px; }
+    .dark { background:#111; color:#eee; }
+    .dark .card { background:#222; }
+    .btn { padding:4px 8px; margin:3px; border:none; border-radius:4px; cursor:pointer; background:#0066cc; color:#fff; font-size:12px; }
+    .btn:hover { background:#004999; }
   </style>
 </head>
 <body>
   <header>
-    Law Updates Flash
-    <span id="night-toggle">🌙</span>
+    <h1>⚖️ LawFlash</h1>
+    <button id="toggleNight" class="btn">🌙 Night</button>
   </header>
 
-  <div class="tabs">
-    <div class="tab active" data-tab="lawweb">LawWeb</div>
-    <div class="tab" data-tab="livelaw">LiveLaw</div>
-    <div class="tab" data-tab="verdictum">Verdictum</div>
-    <div class="tab" data-tab="ipleaders">iPleaders</div>
-    <div class="tab" data-tab="barbench">Bar&Bench</div>
-    <div class="tab" data-tab="supremetoday">SupremeToday</div>
-    <div class="tab" data-tab="scc">SCC Online</div>
-    <div class="tab" data-tab="favorites">⭐ Favorites</div>
+  <div id="tabs">
+    <button onclick="showTab('lawweb')" class="active">LawWeb</button>
+    <button onclick="showTab('livelaw')">LiveLaw</button>
+    <button onclick="showTab('verdictum')">Verdictum</button>
+    <button onclick="showTab('ipleaders')">iPleaders</button>
+    <button onclick="showTab('barbench')">Bar&Bench</button>
+    <button onclick="showTab('supremetoday')">SupremeToday</button>
+    <button onclick="showTab('scconline')">SCC Online</button>
+    <button onclick="showTab('favorites')">⭐ Favorites</button>
   </div>
 
-  <div id="lawweb" class="content active"><p>Loading LawWeb...</p></div>
-  <div id="livelaw" class="content"><p>Loading LiveLaw...</p></div>
-  <div id="verdictum" class="content"><p>Loading Verdictum...</p></div>
-  <div id="ipleaders" class="content"><p>Loading iPleaders...</p></div>
-  <div id="barbench" class="content"><p>Loading Bar&Bench...</p></div>
-  <div id="supremetoday" class="content"><p>Loading SupremeToday...</p></div>
-  <div id="scc" class="content"><p>Loading SCC Online...</p></div>
-  <div id="favorites" class="content"><p>No favorites yet.</p></div>
+  <div id="content" class="content"></div>
 
   <script>
-    // --- Night Mode ---
-    const body = document.body;
-    const toggle = document.getElementById("night-toggle");
-    if(localStorage.getItem("nightMode")==="true"){body.classList.add("dark");toggle.textContent="☀️";}
-    toggle.addEventListener("click",()=>{
-      body.classList.toggle("dark");
-      const dark = body.classList.contains("dark");
-      toggle.textContent = dark ? "☀️" : "🌙";
-      localStorage.setItem("nightMode", dark);
-    });
+    const feeds = {
+      lawweb: "https://lawweb.in/feeds/posts/default?alt=rss",
+      livelaw: "https://www.livelaw.in/rssfeed",
+      verdictum: "https://verdictum.in/rssfeed",
+      ipleaders: "https://blog.ipleaders.in/feed/",
+      barbench: "https://www.barandbench.com/rss",
+      supremetoday: "https://www.supremetoday.ai/rss",
+      scconline: "https://www.scconline.com/blog/post/feed/"
+    };
 
-    // --- Tabs ---
-    document.querySelectorAll(".tab").forEach(tab=>{
-      tab.addEventListener("click",()=>{
-        document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-        tab.classList.add("active");
-        document.querySelectorAll(".content").forEach(c=>c.classList.remove("active"));
-        document.getElementById(tab.dataset.tab).classList.add("active");
-        if(tab.dataset.tab==="favorites") renderFavorites();
+    let currentTab = "lawweb";
+
+    function showTab(tab) {
+      document.querySelectorAll("#tabs button").forEach(b => b.classList.remove("active"));
+      document.querySelector(`#tabs button[onclick="showTab('${tab}')"]`).classList.add("active");
+      currentTab = tab;
+      if (tab === "favorites") {
+        renderFavorites();
+      } else {
+        loadFeed(tab);
+      }
+    }
+
+    function loadFeed(tab) {
+      const cache = getCachedFeed(tab);
+      if (cache) {
+        renderFeed(tab, cache, true);
+        fetchFeed(tab, true); // background refresh
+      } else {
+        fetchFeed(tab);
+      }
+    }
+
+    function fetchFeed(tab, silent=false) {
+      fetch("https://api.allorigins.win/get?url=" + encodeURIComponent(feeds[tab]))
+        .then(r => r.json())
+        .then(data => {
+          const parser = new DOMParser();
+          const xml = parser.parseFromString(data.contents, "text/xml");
+          const items = [...xml.querySelectorAll("item")].slice(0, 10).map(item => ({
+            title: item.querySelector("title")?.textContent || "No title",
+            link: item.querySelector("link")?.textContent || "#",
+            description: item.querySelector("description")?.textContent || "",
+            pdf: (item.querySelector("link")?.textContent.endsWith(".pdf")) ? item.querySelector("link").textContent : null
+          }));
+          cacheFeed(tab, items);
+          renderFeed(tab, items);
+        })
+        .catch(() => {
+          if (!silent) document.getElementById("content").innerHTML = "<p>⚠️ Could not load updates.</p>";
+        });
+    }
+
+    function renderFeed(tab, items, cached=false) {
+      const content = document.getElementById("content");
+      content.innerHTML = cached ? "<p>📂 Showing cached results...</p>" : "";
+      items.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <h3>${item.title}</h3>
+          <p>${item.description.slice(0,150)}...</p>
+          <a href="${item.link}" target="_blank">🔗 Read</a>
+          ${item.pdf ? `<a href="${item.pdf}" target="_blank">📄 PDF</a>` : ""}
+          <button class="btn" onclick="saveFavorite('${tab}', '${encodeURIComponent(item.title)}', '${encodeURIComponent(item.link)}')">⭐ Save</button>
+          <a class="btn" target="_blank" href="https://www.printfriendly.com/p/g?url=${encodeURIComponent(item.link)}">🖨️ PDF</a>
+          <a class="btn" target="_blank" href="https://gemini.google.com/app?q=${encodeURIComponent(item.title + ' site:indiankanoon.org')}">🔍 Find Caselaw</a>
+          <a class="btn" target="_blank" href="https://wa.me/?text=${encodeURIComponent(item.title + ' ' + item.link)}">📤 Share</a>
+        `;
+        content.appendChild(card);
       });
-    });
+    }
 
-    // --- Fetch RSS ---
-    async function fetchRSS(rssUrl, containerId){
-      try{
-        const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`);
-        const data = await response.json();
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(data.contents,"application/xml");
-        const items = xml.querySelectorAll("item");
-        const container = document.getElementById(containerId);
-        container.innerHTML="";
-        items.forEach((item, idx)=>{
-          if(idx<10){
-            const title = item.querySelector("title").textContent;
-            const link = item.querySelector("link").textContent;
-            const description = item.querySelector("description")?.textContent || "";
-            const card = document.createElement("div");
-            card.className="card";
-            card.innerHTML=`
-              <span class="fav-btn" onclick="addFavorite('${title.replace(/'/g,"")}','${link}')">⭐</span>
-              <h2>${title}</h2>
-              <p>${description.substring(0,150)}...</p>
-              <a href="${link}" target="_blank">Read</a>
-              <a class="btn" href="https://gemini.google.com/app?q=${encodeURIComponent(title+' site:indiank
+    // Favorites
+    function saveFavorite(tab, title, link) {
+      let favs = JSON.parse(localStorage.getItem("favorites") || "[]");
+      favs.push({ tab, title: decodeURIComponent(title), link: decodeURIComponent(link) });
+      localStorage.setItem("favorites", JSON.stringify(favs));
+      alert("⭐ Added to favorites!");
+    }
+
+    function renderFavorites() {
+      const content = document.getElementById("content");
+      const favs = JSON.parse(localStorage.getItem("favorites") || "[]");
+      content.innerHTML = favs.length ? "" : "<p>⭐ No favorites yet.</p>";
+      favs.forEach((f,i) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <h3>${f.title}</h3>
+          <a href="${f.link}" target="_blank">🔗 Read</a>
+          <button class="btn" onclick="removeFavorite(${i})">❌ Remove</button>
+        `;
+        content.appendChild(card);
+      });
+    }
+
+    function removeFavorite(i) {
+      let favs = JSON.parse(localStorage.getItem("favorites") || "[]");
+      favs.splice(i,1);
+      localStorage.setItem("favorites", JSON.stringify(favs));
+      renderFavorites();
+    }
+
+    // Cache system
+    function cacheFeed(key, data) {
+      localStorage.setItem(key, JSON.stringify({ timestamp: Date.now(), items: data }));
+    }
+
+    function getCachedFeed(key, maxAge = 1000*60*30) {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (Date.now() - parsed.timestamp > maxAge) return null;
+      return parsed.items;
+    }
+
+    // Night Mode
+    const night = localStorage.getItem("night") === "true";
+    if (night) document.body.classList.add("dark");
+    document.getElementById("toggleNight").onclick = () => {
+      document.body.classList.toggle("dark");
+      localStorage.setItem("night", document.body.classList.contains("dark"));
+    };
+
+    // Init
+    loadFeed("lawweb");
+
+    // Service Worker
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js");
+    }
+  </script>
+</body>
+</html>
