@@ -5,57 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lawyer Reader</title>
 <style>
-body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  background: #f5f5f5;
-  color: #333;
-}
-header {
-  background: #222;
-  color: #fff;
-  padding: 1rem;
-  text-align: center;
-  font-size: 1.2rem;
-}
-.tabs {
-  display: flex;
-  overflow-x: auto;
-  background: #333;
-}
-.tab {
-  flex: 1;
-  padding: 0.7rem;
-  color: #fff;
-  text-align: center;
-  cursor: pointer;
-}
-.tab.active {
-  background: #007bff;
-}
-#controls {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0.5rem;
-  gap: 1rem;
-  background: #eee;
-}
-.card {
-  background: #fff;
-  margin: 1rem;
-  padding: 1rem;
-  border-radius: 10px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-.card h2 { font-size: 1rem; margin: 0 0 0.5rem 0; }
-.card p { font-size: 0.9rem; color: #555; }
-.card a, .card button { 
-  margin-top: 0.5rem; padding: 0.4rem 0.8rem; 
-  background: #007bff; color: #fff; border: none; border-radius: 5px; font-size:0.85rem; cursor:pointer;
-}
-.card a:hover, .card button:hover { background: #0056b3; }
-.night-mode { background: #222; color: #eee; }
-.night-mode .card { background: #333; color: #ddd; }
+body { font-family: Arial, sans-serif; margin:0; background:#f5f5f5; color:#333; }
+header { background:#222; color:#fff; padding:1rem; text-align:center; font-size:1.2rem; }
+.tabs { display:flex; overflow-x:auto; background:#333; }
+.tab { flex:1; padding:0.7rem; color:#fff; text-align:center; cursor:pointer; white-space: nowrap; }
+.tab.active { background:#007bff; }
+#controls { display:flex; justify-content:flex-end; padding:0.5rem; gap:1rem; background:#eee; flex-wrap:wrap; }
+.card { background:#fff; margin:1rem; padding:1rem; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+.card h2 { font-size:1rem; margin:0 0 0.5rem 0; }
+.card p { font-size:0.9rem; color:#555; }
+.card a, .card button { margin-top:0.5rem; padding:0.4rem 0.8rem; background:#007bff; color:#fff; border:none; border-radius:5px; font-size:0.85rem; cursor:pointer; }
+.card a:hover, .card button:hover { background:#0056b3; }
+.night-mode { background:#222; color:#eee; }
+.night-mode .card { background:#333; color:#ddd; }
 </style>
 </head>
 <body>
@@ -67,6 +29,8 @@ header {
   <div class="tab" data-site="Bar & Bench">Bar & Bench</div>
   <div class="tab" data-site="SupremeToday">SupremeToday</div>
   <div class="tab" data-site="SCC Online">SCC Online</div>
+  <div class="tab" data-site="Indian Kanoon">Indian Kanoon</div>
+  <div class="tab" data-site="CaseMine">CaseMine</div>
   <div class="tab" data-site="Favorites">Favorites</div>
 </div>
 
@@ -85,108 +49,87 @@ const contentDiv = document.getElementById('content');
 const lastUpdatedSpan = document.getElementById('lastUpdated');
 const cacheSizeSpan = document.getElementById('cacheSize');
 
-function saveCache(site, items) {
-  localStorage.setItem('feeds_'+site, JSON.stringify(items));
-  updateCacheSize();
-}
+// localStorage helpers
+function saveCache(site, items){ localStorage.setItem('feeds_'+site, JSON.stringify(items)); updateCacheSize(); }
+function loadCache(site){ const data=localStorage.getItem('feeds_'+site); return data?JSON.parse(data):[]; }
+function updateCacheSize(){ let size=0; for(let k in localStorage){ if(localStorage.hasOwnProperty(k)){ size+=(localStorage[k].length*2)/1024; } } cacheSizeSpan.textContent='Cache: '+Math.round(size)+' KB'; }
 
-function loadCache(site) {
-  const data = localStorage.getItem('feeds_'+site);
-  return data ? JSON.parse(data) : [];
-}
-
-function updateCacheSize() {
-  let size = 0;
-  for (let key in localStorage) {
-    if (localStorage.hasOwnProperty(key)) {
-      size += (localStorage[key].length*2)/1024;
-    }
-  }
-  cacheSizeSpan.textContent = 'Cache: '+Math.round(size)+' KB';
-}
-
-function toggleNightMode() {
-  document.body.classList.toggle('night-mode');
-}
-
+// night mode
+function toggleNightMode(){ document.body.classList.toggle('night-mode'); }
 document.getElementById('toggleNight').addEventListener('click', toggleNightMode);
 
-tabs.forEach(tab => {
-  tab.addEventListener('click', () => {
-    tabs.forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    displaySite(tab.dataset.site);
-  });
-});
+// tab switching
+tabs.forEach(tab=>{ tab.addEventListener('click',()=>{
+  tabs.forEach(t=>t.classList.remove('active'));
+  tab.classList.add('active');
+  displaySite(tab.dataset.site);
+});});
 
-async function fetchFeeds() {
-  try {
-    const res = await fetch('https://yourusername.vercel.app/api/feeds');
+// fetch feeds from Vercel
+async function fetchFeeds(){
+  try{
+    const res = await fetch('https://yourusername.vercel.app/api/feeds'); // replace with your actual Vercel URL
     const data = await res.json();
     feedsData = {};
-
-    data.feeds.forEach(item => {
-      if (!feedsData[item.site]) feedsData[item.site] = [];
+    data.feeds.forEach(item=>{
+      if(!feedsData[item.site]) feedsData[item.site]=[];
       feedsData[item.site].push(item);
     });
-
-    // Save to localStorage for offline mode
-    for (let site in feedsData) {
-      saveCache(site, feedsData[site]);
-    }
-
-    lastUpdatedSpan.textContent = 'Last Updated: ' + new Date().toLocaleString();
-
-    // Display default tab
-    displaySite('LawWeb');
-
-  } catch(err) {
-    console.error('Failed to fetch feeds:', err);
-    // Load from cache if available
-    displaySite('LawWeb');
+    for(let site in feedsData){ saveCache(site, feedsData[site]); }
+    lastUpdatedSpan.textContent='Last Updated: '+new Date().toLocaleString();
+    displaySite('LawWeb'); // default tab
+  }catch(err){
+    console.error('Failed to fetch feeds:',err);
+    displaySite('LawWeb'); // fallback to cached data
   }
 }
 
-function displaySite(site) {
-  contentDiv.innerHTML = '';
-  let items = site === 'Favorites' ? loadCache('Favorites') : feedsData[site] || loadCache(site);
-
-  if (!items.length) {
-    contentDiv.innerHTML = '<p>No content available.</p>';
-    return;
-  }
-
-  items.forEach(item => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
+// display site tab content
+function displaySite(site){
+  contentDiv.innerHTML='';
+  let items = site==='Favorites'? loadCache('Favorites') : feedsData[site] || loadCache(site);
+  if(!items.length){ contentDiv.innerHTML='<p>No content available.</p>'; return; }
+  items.forEach(item=>{
+    const card=document.createElement('div');
+    card.className='card';
+    card.innerHTML=`
       <h2>${item.title}</h2>
       <p>${item.description.substring(0,200)}...</p>
       <a href="${item.link}" target="_blank">Read More</a>
       <button onclick="addFavorite('${site}', ${encodeURIComponent(JSON.stringify(item))})">Favorite</button>
       <button onclick="window.open('https://www.printfriendly.com/p/generate?url='+encodeURIComponent('${item.link}'))">PDF</button>
       <button onclick="shareItem('${item.title}','${item.link}')">Share</button>
+      <button onclick="findCaselaw('${item.title}')">Find Caselaw</button>
     `;
     contentDiv.appendChild(card);
   });
 }
 
-function addFavorite(site, itemStr) {
-  const item = JSON.parse(decodeURIComponent(itemStr));
-  let favs = loadCache('Favorites');
+// favorites
+function addFavorite(site,itemStr){
+  const item=JSON.parse(decodeURIComponent(itemStr));
+  let favs=loadCache('Favorites');
   favs.unshift(item);
-  saveCache('Favorites', favs);
+  saveCache('Favorites',favs);
   alert('Added to Favorites!');
 }
 
-function shareItem(title, link) {
-  const url = encodeURIComponent(link);
-  const text = encodeURIComponent(title);
-  const shareUrl = `https://api.whatsapp.com/send?text=${text}%20${url}`;
-  window.open(shareUrl, '_blank');
+// share
+function shareItem(title,link){
+  const url=encodeURIComponent(link);
+  const text=encodeURIComponent(title);
+  const shareUrl=`https://api.whatsapp.com/send?text=${text}%20${url}`;
+  window.open(shareUrl,'_blank');
 }
 
-// Initial load
+// Find Caselaw button: search on Google Gemini + Indian Kanoon
+function findCaselaw(query){
+  const search = encodeURIComponent(query + " site:indiankanoon.org");
+  const geminiUrl = `https://gemini.google.com/search?q=${search}`;
+  window.open(geminiUrl,'_blank');
+}
+
+// initial load
 fetchFeeds();
 updateCacheSize();
 </script>
